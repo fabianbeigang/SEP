@@ -3,7 +3,8 @@
 """
 Created on Sat Oct  9 22:25:25 2021
 
-This class should take the txt file and turn it into a nice pandas data frame
+This module provides a number of functions for the analysis of the Stanford 
+Encyclopedia of Philosophy.
 
 @author: fabianbeigang
 """
@@ -12,10 +13,24 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-### For the data extraction
+# For the data extraction notebook
 
-# Function which extracts li elements from the bibliography
 def get_bib_elements(url):
+    """
+    Find and return a list of references on the provided webpage.
+    
+
+    Parameters
+    ----------
+    url : str
+        A string containing the URL of the encyclopedia page.
+
+    Returns
+    -------
+    li_elements : bs4.element.ResultSet
+        A list of <li> html elements representing the individual references on the page.
+
+    """
     
     # Get the HTML content from that page
     r = requests.get(url)
@@ -31,8 +46,21 @@ def get_bib_elements(url):
     
     return li_elements
 
-# Retrieve the publication year (9999 if forthcoming, -1 if no year)
 def extract_year(reference):
+    """
+    Extract the publication year from the reference.
+
+    Parameters
+    ----------
+    reference : str
+        A string containing the raw reference.
+
+    Returns
+    -------
+    year : str
+        A string containing the publication year or "forthcoming".
+
+    """
     # find the first regex occurrence of a four 
     # digit number starting with 1 or 2 
     try:
@@ -47,6 +75,22 @@ def extract_year(reference):
 # Retrieve a list of author names of format "Beigang, F" - 
 # -- here we have to control for different citation styles, some have full names
 def extract_authors(reference, year):
+    """
+    Extract the list of authors from the reference.
+
+    Parameters
+    ----------
+    reference : str
+        A string containing the raw reference.
+    year : str
+        A string containing the publication year.
+
+    Returns
+    -------
+    names_list : list
+        A list of names of the authors of the referenced publication.
+
+    """
     
     # Split at year
     names = reference.split(year)[0]
@@ -115,7 +159,21 @@ def extract_authors(reference, year):
     return names_list
 
 def extract_title(reference):
-    
+     """
+     Extract the title from the reference.
+
+     Parameters
+     ----------
+     reference : str
+         A string containing the raw reference.
+
+     Returns
+     -------
+     title : str
+         A string containing the title of the publication.
+
+    """
+
      # Remove newline characters from title
      title = reference.replace("\n", " ")
      
@@ -141,11 +199,136 @@ def extract_title(reference):
     
      return title
 
+def sort_names(names):
+    """
+    Split the list of names into two lists: one where the first name is complete,
+    and one where its only initials
 
-### For the analysis notebook
+    Parameters
+    ----------
+    names : Iterable
+        An iterable object of first author names.
 
-# Return true if a publication year is within the year range, False if it is not a number or not in the range
+    Returns
+    -------
+    full_names : list
+        A list of first authors whose full first names were available.
+    abr_names : list
+        A list of first authors whose first names was abbreviated.
+
+    """
+    
+    # Initialize empty lists for full names and for initials
+    full_names = []
+    abr_names = []
+    
+    # Sort into full and abbreviated names by checking whether what is before 
+    #the first whitespace is only uppercase letters
+    for name in names:
+        if name.split(" ")[0].isupper():
+            abr_names.append(name)
+        else:
+            full_names.append(name)
+    
+    return full_names, abr_names
+
+def get_matches(full_names, abr_names):
+    """
+    Match names where only the initial of the first name is available to full names
+
+    Parameters
+    ----------
+    full_names : list
+        A list of first authors whose full first names were available.
+    abr_names : list
+        A list of first authors whose first names was abbreviated.
+
+    Returns
+    -------
+    matches : list
+        A list of lists where the first element is the abbreviated names, 
+        the second element yet another list of matching full names.
+
+    """    
+    # Initialize a list to store matches in
+    matches = []
+    
+    # Iterate through abbreviated names
+    for name in abr_names:
+        
+        # extract first letter of first name and last name
+        initial = name[0]
+        last_name = name.split(" ")[-1]
+    
+        # Boolean flag to indicate whether there is a unique match
+        matches_temp = []
+        
+        # Iterate through full name list
+        for full_name in full_names:
+            
+            initial_f = full_name[0]
+            last_name_f = full_name.split(" ")[-1]
+        
+            # Match if it's the same initial, same last name (+ add that first name has to have at least two letters without )
+            if initial==initial_f and last_name==last_name_f:
+                #print(f"Abbreviated: {name}, Full: {full_name}")
+                matches_temp.append(full_name)
+        # If there are any specific matches, append to match list
+        if matches_temp:
+            matches.append([name, matches_temp])
+
+    return matches
+    
+def get_full_name(name, unique_matches):
+    """
+    Return the corresponding full name.
+
+    Parameters
+    ----------
+    name : str
+        Abbreviated name.
+    unique_matches : list
+        A list of lists where the first element is the abbreviated names, 
+        the second element the uniquely matching full name.
+
+    Returns
+    -------
+    name: str
+        The full name.
+
+    """
+    
+    # Check whether name is an abbreviated name
+    if name.split(" ")[0].isupper():
+        # Check whether there's a unique match
+        for unique_match in unique_matches:
+            # If the name matches, return that name
+            if name==unique_match[0]:
+                return unique_match[1][0]
+    return name
+
+# For the analysis notebook
+
 def published_between(str,start_year,end_year):
+    """
+    Check whether a publication was published in a given year range.
+
+    Parameters
+    ----------
+    str : str
+        A string containing the publication year.
+    start_year : int
+        The beginning year of the range.
+    end_year : int
+        The final year of the range.
+
+    Returns
+    -------
+    bool
+        Truth value whether the string is a year within the range.
+
+    """
+    
     if str.isdecimal():
         if int(str) in range(start_year,end_year):
             return True
