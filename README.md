@@ -9,5 +9,6 @@ The project showcases the following skills:
 * Web scraping using *BeautifulSoup*
 * Data cleaning and preprocessing using *pandas*
 * Data visualisation using *plotly*
+* Extracting geocoding information using GoogleMaps API
 
 
